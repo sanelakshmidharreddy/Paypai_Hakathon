@@ -9,3 +9,4 @@ router.get('/stats', dashboardController.getStats);
 router.get('/activity', dashboardController.getActivity);
 
 module.exports = router;
+

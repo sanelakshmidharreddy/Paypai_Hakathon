@@ -35,3 +35,4 @@ export const paypalApi = {
       body: JSON.stringify({ scenario, amount, currency }),
     }),
 };
+

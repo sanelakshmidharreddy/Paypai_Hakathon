@@ -10,3 +10,4 @@ export const dashboardApi = {
   // System & PayPal sandbox connection health
   getHealth: () => apiRequest('/health'),
 };
+

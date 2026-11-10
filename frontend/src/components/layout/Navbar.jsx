@@ -52,3 +52,4 @@ export default function Navbar({ paypalConfig, onOpenCheckout, activePage, setAc
     </header>
   );
 }
+

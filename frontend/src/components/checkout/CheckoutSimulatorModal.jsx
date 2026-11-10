@@ -8,9 +8,12 @@ import {
   ArrowRight,
   RefreshCw,
   Terminal,
-  ShieldAlert,
   Clock,
-  Ban
+  Ban,
+  ShieldAlert,
+  WifiOff,
+  CalendarX,
+  Lock
 } from 'lucide-react';
 import { paypalApi } from '../../api/paypalApi';
 import { formatCurrency } from '../../utils/formatters';
@@ -27,7 +30,7 @@ export default function CheckoutSimulatorModal({
   const [description, setDescription] = useState('E-Commerce Order #8421');
   
   const [activeTab, setActiveTab] = useState('live'); // 'live' | 'scenarios'
-  const [statusState, setStatusState] = useState('idle'); // 'idle' | 'creating' | 'ready' | 'capturing' | 'success' | 'declined' | 'error' | 'cancelled'
+  const [statusState, setStatusState] = useState('idle');
   const [activeOrderId, setActiveOrderId] = useState(null);
   const [lastTransaction, setLastTransaction] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -80,10 +83,6 @@ export default function CheckoutSimulatorModal({
     };
 
     document.body.appendChild(script);
-
-    return () => {
-      // Keep script or leave for session
-    };
   }, [isOpen, paypalConfig?.clientId, currency]);
 
   // Render PayPal Buttons when SDK is loaded and tab is 'live'
@@ -93,7 +92,7 @@ export default function CheckoutSimulatorModal({
     const container = document.getElementById('paypal-button-container');
     if (!container) return;
 
-    container.innerHTML = ''; // Clear prior buttons
+    container.innerHTML = '';
 
     try {
       window.paypal.Buttons({
@@ -176,9 +175,9 @@ export default function CheckoutSimulatorModal({
       addLog(`Simulation complete for Order: ${res.orderId}`, 'success');
 
       if (scenario === 'SUCCESS') setStatusState('success');
-      else if (scenario === 'DECLINE') setStatusState('declined');
       else if (scenario === 'PENDING') setStatusState('pending');
-      else if (scenario === 'CANCEL') setStatusState('cancelled');
+      else if (scenario === 'CANCEL' || scenario === 'INCOMPLETE_APPROVAL') setStatusState('cancelled');
+      else setStatusState('declined');
 
       if (onTransactionUpdated) onTransactionUpdated();
     } catch (err) {
@@ -195,6 +194,65 @@ export default function CheckoutSimulatorModal({
     setErrorMessage(null);
     setLogs([]);
   }
+
+  const scenarioItems = [
+    {
+      id: 'SUCCESS',
+      name: '1. Successful Capture',
+      desc: 'Order created, approved, and captured with COMPLETED status.',
+      icon: CheckCircle2,
+      color: 'emerald',
+    },
+    {
+      id: 'DECLINE',
+      name: '2. Card Declined (422)',
+      desc: 'Issuing bank decline: INSTRUMENT_DECLINED.',
+      icon: CreditCard,
+      color: 'rose',
+    },
+    {
+      id: 'CARD_EXPIRED',
+      name: '3. Expired Card',
+      desc: 'Card expiration date passed: CARD_EXPIRED.',
+      icon: CalendarX,
+      color: 'rose',
+    },
+    {
+      id: 'INCOMPLETE_APPROVAL',
+      name: '4. Incomplete Approval',
+      desc: 'Buyer abandoned before approval: ORDER_NOT_APPROVED.',
+      icon: Ban,
+      color: 'slate',
+    },
+    {
+      id: 'PENDING',
+      name: '5. Pending Capture',
+      desc: 'eCheck or fraud review: PENDING_REVIEW.',
+      icon: Clock,
+      color: 'amber',
+    },
+    {
+      id: 'ALREADY_CAPTURED',
+      name: '6. Already Captured',
+      desc: 'Duplicate prevention test: ORDER_ALREADY_CAPTURED.',
+      icon: Lock,
+      color: 'blue',
+    },
+    {
+      id: 'NETWORK_TIMEOUT',
+      name: '7. Network Timeout',
+      desc: 'Connection dropped: Verify status before retry.',
+      icon: WifiOff,
+      color: 'amber',
+    },
+    {
+      id: 'RESTRICTED_ACCOUNT',
+      name: '8. Account Restricted',
+      desc: 'Merchant receiving issue: PAYEE_ACCOUNT_RESTRICTED.',
+      icon: ShieldAlert,
+      color: 'rose',
+    },
+  ];
 
   return (
     <Modal
@@ -224,7 +282,7 @@ export default function CheckoutSimulatorModal({
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            Sandbox Edge-Case Simulator
+            Sandbox Edge-Case Simulator (All Conditions)
           </button>
         </div>
 
@@ -326,81 +384,43 @@ export default function CheckoutSimulatorModal({
         {activeTab === 'scenarios' && (
           <div className="space-y-3">
             <p className="text-xs text-slate-500">
-              Trigger exact PayPal response conditions to test backend status verification, error code extraction, and audit timeline:
+              Trigger exact PayPal response conditions to test deterministic error classification, AI evidence extraction, and safe recovery workflows:
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <button
-                onClick={() => handleSimulate('SUCCESS')}
-                disabled={statusState === 'capturing'}
-                className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 text-left transition-colors flex items-start gap-3 group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-emerald-900 group-hover:text-emerald-700">
-                    1. Successful Capture
-                  </div>
-                  <div className="text-xs text-emerald-700 mt-0.5">
-                    Order created, approved, and captured with COMPLETED status.
-                  </div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => handleSimulate('DECLINE')}
-                disabled={statusState === 'capturing'}
-                className="p-3 rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-50 text-left transition-colors flex items-start gap-3 group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
-                  <CreditCard className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-rose-900 group-hover:text-rose-700">
-                    2. Instrument Declined (422)
-                  </div>
-                  <div className="text-xs text-rose-700 mt-0.5">
-                    Simulate bank refusal: code <code>INSTRUMENT_DECLINED</code>.
-                  </div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => handleSimulate('PENDING')}
-                disabled={statusState === 'capturing'}
-                className="p-3 rounded-xl border border-amber-200 bg-amber-50/50 hover:bg-amber-50 text-left transition-colors flex items-start gap-3 group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                  <Clock className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-amber-900 group-hover:text-amber-700">
-                    3. Pending Settlement
-                  </div>
-                  <div className="text-xs text-amber-700 mt-0.5">
-                    eCheck/settlement: code <code>PENDING_REVIEW</code>.
-                  </div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => handleSimulate('CANCEL')}
-                disabled={statusState === 'capturing'}
-                className="p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-left transition-colors flex items-start gap-3 group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center shrink-0">
-                  <Ban className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-slate-900 group-hover:text-slate-700">
-                    4. Buyer Abandonment
-                  </div>
-                  <div className="text-xs text-slate-600 mt-0.5">
-                    Checkout interrupted: code <code>BUYER_CANCELLED</code>.
-                  </div>
-                </div>
-              </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              {scenarioItems.map((item) => {
+                const IconComponent = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSimulate(item.id)}
+                    disabled={statusState === 'capturing'}
+                    className="p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-left transition-colors flex items-start gap-3 group shadow-sm hover:shadow"
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                      item.color === 'emerald'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : item.color === 'rose'
+                        ? 'bg-rose-100 text-rose-700'
+                        : item.color === 'amber'
+                        ? 'bg-amber-100 text-amber-700'
+                        : item.color === 'blue'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      <IconComponent className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                        {item.name}
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        {item.desc}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -410,14 +430,14 @@ export default function CheckoutSimulatorModal({
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3 animate-in fade-in">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Transaction Result
+                Transaction Recorded
               </span>
               <span className="font-mono text-xs text-slate-600">{lastTransaction.id}</span>
             </div>
 
             <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
               <div>
-                <div className="text-xs text-slate-500">Recorded Status:</div>
+                <div className="text-xs text-slate-500">Status:</div>
                 <div className="text-sm font-bold text-slate-900">{lastTransaction.payment_status}</div>
                 {lastTransaction.error_code && (
                   <div className="text-xs text-rose-600 font-mono mt-0.5">
@@ -432,7 +452,7 @@ export default function CheckoutSimulatorModal({
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
               >
-                <span>View Full Details</span>
+                <span>View Full Details & AI Analysis</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>

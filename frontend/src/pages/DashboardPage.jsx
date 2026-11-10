@@ -323,3 +323,4 @@ export default function DashboardPage({ onOpenCheckout, onViewTransaction, onNav
     </div>
   );
 }
+

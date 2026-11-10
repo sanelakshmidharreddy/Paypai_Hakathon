@@ -37,3 +37,4 @@ module.exports = {
   CAPTURE_STATUSES,
   SUPPORTED_CURRENCIES,
 };
+

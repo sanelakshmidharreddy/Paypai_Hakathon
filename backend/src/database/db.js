@@ -16,7 +16,7 @@ if (!fs.existsSync(dbDir)) {
 const db = new DatabaseSync(dbFilePath);
 logger.info(`Connected to SQLite database at: ${dbFilePath}`);
 
-// Initialize schema
+// Initialize schema & migrations
 function initSchema() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS transactions (
@@ -40,6 +40,7 @@ function initSchema() {
       ai_analysis_summary TEXT,
       ai_recovery_recommendation TEXT,
       ai_merchant_action TEXT,
+      latest_analysis_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -53,9 +54,51 @@ function initSchema() {
       value TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    -- AI Analysis History Table (Prompt 2)
+    CREATE TABLE IF NOT EXISTS ai_analyses (
+      id TEXT PRIMARY KEY,
+      transaction_id TEXT NOT NULL,
+      error_classification TEXT NOT NULL,
+      explanation TEXT NOT NULL,
+      likely_reason TEXT,
+      confirmed_facts TEXT NOT NULL,
+      possible_explanations TEXT,
+      unknown_information TEXT NOT NULL,
+      confidence_level TEXT NOT NULL,
+      merchant_action TEXT NOT NULL,
+      customer_action TEXT NOT NULL,
+      retry_safety TEXT NOT NULL,
+      retry_safety_reason TEXT NOT NULL,
+      customer_message TEXT NOT NULL,
+      model_used TEXT,
+      source TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (transaction_id) REFERENCES transactions (id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_ai_analyses_transaction_id ON ai_analyses (transaction_id);
+    CREATE INDEX IF NOT EXISTS idx_ai_analyses_created_at ON ai_analyses (created_at DESC);
   `);
 
-  logger.info('Database schema verified and ready.');
+  // Ensure columns exist on existing databases
+  try {
+    db.exec(`ALTER TABLE transactions ADD COLUMN latest_analysis_id TEXT;`);
+  } catch {}
+  try {
+    db.exec(`ALTER TABLE transactions ADD COLUMN ai_analysis_status TEXT DEFAULT 'pending';`);
+  } catch {}
+  try {
+    db.exec(`ALTER TABLE transactions ADD COLUMN ai_analysis_summary TEXT;`);
+  } catch {}
+  try {
+    db.exec(`ALTER TABLE transactions ADD COLUMN ai_recovery_recommendation TEXT;`);
+  } catch {}
+  try {
+    db.exec(`ALTER TABLE transactions ADD COLUMN ai_merchant_action TEXT;`);
+  } catch {}
+
+  logger.info('Database schema verified (including ai_analyses table and column migrations).');
 }
 
 initSchema();

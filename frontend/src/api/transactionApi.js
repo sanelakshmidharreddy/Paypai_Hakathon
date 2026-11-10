@@ -13,12 +13,27 @@ export const transactionApi = {
     return apiRequest(`/transactions${queryString}`);
   },
 
-  // Get full transaction details
+  // Get full transaction details (including latest analysis and history)
   getTransactionDetails: (id) => apiRequest(`/transactions/${id}`),
 
-  // Live sync status with PayPal REST API
+  // Trigger AI Payment Failure & Recovery Analysis (Prompt 2)
+  analyzeTransaction: (id) =>
+    apiRequest(`/transactions/${id}/analyze`, {
+      method: 'POST',
+    }),
+
+  // Get AI Analysis History for a transaction (Prompt 2)
+  getAnalysisHistory: (id) => apiRequest(`/transactions/${id}/analysis`),
+
+  // Live status refresh against PayPal REST API (Prompt 2)
+  refreshStatus: (id) =>
+    apiRequest(`/transactions/${id}/refresh`, {
+      method: 'POST',
+    }),
+
+  // Backwards-compatible alias
   syncWithPayPal: (id) =>
-    apiRequest(`/transactions/${id}/sync`, {
+    apiRequest(`/transactions/${id}/refresh`, {
       method: 'POST',
     }),
 };

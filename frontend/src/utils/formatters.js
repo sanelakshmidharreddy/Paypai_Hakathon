@@ -53,3 +53,4 @@ export function truncateId(id, length = 14) {
   const half = Math.floor((length - 3) / 2);
   return `${id.substring(0, half)}...${id.substring(id.length - half)}`;
 }
+
