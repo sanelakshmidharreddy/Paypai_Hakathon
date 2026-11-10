@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const paypalController = require('../controllers/paypalController');
+const webhookController = require('../controllers/webhookController');
 
 // Configuration (public safe endpoint for frontend)
 router.get('/config', paypalController.getConfig);
@@ -17,5 +18,9 @@ router.get('/order/:orderId', paypalController.getOrderStatus);
 // Testing & Sandbox simulation endpoint
 router.post('/simulate', paypalController.simulateScenario);
 
-module.exports = router;
+// PayPal Webhooks (Prompt 3)
+router.post('/webhook', webhookController.handleWebhook);
+router.get('/webhooks', webhookController.getWebhookLogs);
+router.post('/webhooks/simulate', webhookController.simulateWebhook);
 
+module.exports = router;

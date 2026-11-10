@@ -1,11 +1,13 @@
 /**
  * Lightweight API Client for interacting with the backend API
+ * Supports both local dev proxy and production Vercel/Render deployments
  */
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export async function apiRequest(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE_URL}${cleanEndpoint}`;
   
   const headers = {
     'Content-Type': 'application/json',
@@ -41,4 +43,3 @@ export async function apiRequest(endpoint, options = {}) {
     throw err;
   }
 }
-

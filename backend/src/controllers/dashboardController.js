@@ -2,11 +2,18 @@ const transactionService = require('../services/transactionService');
 const logger = require('../utils/logger');
 
 /**
- * Get aggregated dashboard statistics
+ * Get aggregated dashboard statistics with filter support (Prompt 3)
  */
 function getStats(req, res, next) {
   try {
-    const stats = transactionService.getDashboardStats();
+    const { status, dateFrom, dateTo, errorCategory } = req.query;
+    const stats = transactionService.getDashboardStats({
+      status,
+      dateFrom,
+      dateTo,
+      errorCategory,
+    });
+
     res.status(200).json({
       success: true,
       stats,
@@ -18,11 +25,16 @@ function getStats(req, res, next) {
 }
 
 /**
- * Get activity timelines and failure causes
+ * Get activity timelines and failure breakdown with filter support (Prompt 3)
  */
 function getActivity(req, res, next) {
   try {
-    const activity = transactionService.getPaymentActivity();
+    const { dateFrom, dateTo } = req.query;
+    const activity = transactionService.getPaymentActivity({
+      dateFrom,
+      dateTo,
+    });
+
     res.status(200).json({
       success: true,
       activity,
@@ -37,4 +49,3 @@ module.exports = {
   getStats,
   getActivity,
 };
-

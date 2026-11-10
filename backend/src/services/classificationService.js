@@ -528,3 +528,4 @@ module.exports = {
   CLASSIFICATION_RULES,
   classifyTransaction,
 };
+

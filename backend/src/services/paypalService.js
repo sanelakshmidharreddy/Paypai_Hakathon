@@ -195,6 +195,73 @@ async function getOrderDetails(orderId) {
 }
 
 /**
+ * Verify PayPal Webhook Signature against official PayPal REST API (Part 1)
+ */
+async function verifyWebhookSignature({
+  authAlgo,
+  certUrl,
+  transmissionId,
+  transmissionSig,
+  transmissionTime,
+  webhookId,
+  eventBody,
+}) {
+  const token = await getAccessToken();
+  const { baseUrl } = config.paypal;
+
+  const targetWebhookId = webhookId || config.paypal.webhookId;
+  if (!targetWebhookId) {
+    logger.warn('PAYPAL_WEBHOOK_ID not set; signature verification cannot validate without registered Webhook ID.');
+    return {
+      verified: false,
+      reason: 'PAYPAL_WEBHOOK_ID is not configured in backend .env.',
+      status: 'UNCONFIGURED',
+    };
+  }
+
+  const payload = {
+    auth_algo: authAlgo,
+    cert_url: certUrl,
+    transmission_id: transmissionId,
+    transmission_sig: transmissionSig,
+    transmission_time: transmissionTime,
+    webhook_id: targetWebhookId,
+    webhook_event: typeof eventBody === 'string' ? JSON.parse(eventBody) : eventBody,
+  };
+
+  logger.paypal(`Verifying webhook signature with PayPal API (Transmission: ${transmissionId})...`);
+
+  const response = await fetch(`${baseUrl}/v1/notifications/verify-webhook-signature`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    logger.error('PayPal webhook verification request failed:', data);
+    return {
+      verified: false,
+      status: 'VERIFICATION_FAILED',
+      details: data,
+    };
+  }
+
+  const isVerified = data.verification_status === 'SUCCESS';
+  logger.paypal(`Webhook verification result: ${data.verification_status} (Verified: ${isVerified})`);
+
+  return {
+    verified: isVerified,
+    status: data.verification_status,
+    raw: data,
+  };
+}
+
+/**
  * Test credentials and sandbox connectivity
  */
 async function testConnection() {
@@ -224,6 +291,6 @@ module.exports = {
   createOrder,
   captureOrder,
   getOrderDetails,
+  verifyWebhookSignature,
   testConnection,
 };
-

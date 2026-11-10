@@ -36,6 +36,7 @@ function initSchema() {
       raw_paypal_response TEXT,
       timeline TEXT,
       customer_notes TEXT,
+      is_demo INTEGER DEFAULT 0,
       ai_analysis_status TEXT DEFAULT 'pending',
       ai_analysis_summary TEXT,
       ai_recovery_recommendation TEXT,
@@ -79,9 +80,27 @@ function initSchema() {
 
     CREATE INDEX IF NOT EXISTS idx_ai_analyses_transaction_id ON ai_analyses (transaction_id);
     CREATE INDEX IF NOT EXISTS idx_ai_analyses_created_at ON ai_analyses (created_at DESC);
+
+    -- Webhook Events & Idempotency Table (Prompt 3)
+    CREATE TABLE IF NOT EXISTS webhook_events (
+      event_id TEXT PRIMARY KEY,
+      event_type TEXT NOT NULL,
+      resource_id TEXT,
+      resource_type TEXT,
+      summary TEXT,
+      verification_status TEXT NOT NULL,
+      payload TEXT,
+      processed_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_webhook_events_resource_id ON webhook_events (resource_id);
+    CREATE INDEX IF NOT EXISTS idx_webhook_events_event_type ON webhook_events (event_type);
   `);
 
   // Ensure columns exist on existing databases
+  try {
+    db.exec(`ALTER TABLE transactions ADD COLUMN is_demo INTEGER DEFAULT 0;`);
+  } catch {}
   try {
     db.exec(`ALTER TABLE transactions ADD COLUMN latest_analysis_id TEXT;`);
   } catch {}
@@ -98,7 +117,7 @@ function initSchema() {
     db.exec(`ALTER TABLE transactions ADD COLUMN ai_merchant_action TEXT;`);
   } catch {}
 
-  logger.info('Database schema verified (including ai_analyses table and column migrations).');
+  logger.info('Database schema verified (including webhook_events & idempotency tables).');
 }
 
 initSchema();

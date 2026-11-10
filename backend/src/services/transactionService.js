@@ -28,9 +28,9 @@ function appendTimelineEvent(currentTimelineJson, eventType, title, details = {}
 }
 
 /**
- * Create a new pending transaction upon PayPal Order creation
+ * Create a new transaction upon PayPal Order creation
  */
-function createTransaction({ paypalOrderId, amount, currency = 'USD', customerNotes = null }) {
+function createTransaction({ paypalOrderId, amount, currency = 'USD', customerNotes = null, isDemo = 0 }) {
   const id = generateTransactionId();
   const now = new Date().toISOString();
 
@@ -45,8 +45,8 @@ function createTransaction({ paypalOrderId, amount, currency = 'USD', customerNo
   const stmt = db.prepare(`
     INSERT INTO transactions (
       id, paypal_order_id, amount, currency, payment_status, paypal_status,
-      timeline, customer_notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      timeline, customer_notes, is_demo, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   stmt.run(
@@ -58,6 +58,7 @@ function createTransaction({ paypalOrderId, amount, currency = 'USD', customerNo
     'CREATED',
     initialTimeline,
     customerNotes,
+    isDemo ? 1 : 0,
     now,
     now
   );
@@ -93,6 +94,7 @@ function formatTransaction(row) {
   if (!row) return null;
   return {
     ...row,
+    is_demo: Boolean(row.is_demo),
     error_details: row.error_details ? safeJsonParse(row.error_details) : null,
     raw_paypal_response: row.raw_paypal_response ? safeJsonParse(row.raw_paypal_response) : null,
     timeline: row.timeline ? safeJsonParse(row.timeline) : [],
@@ -248,8 +250,8 @@ function recordCaptureSuccess(orderId, captureResult) {
       INSERT INTO transactions (
         id, paypal_order_id, paypal_capture_id, amount, currency,
         payment_status, paypal_status, payer_email, payer_name, payer_id,
-        raw_paypal_response, timeline, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        raw_paypal_response, timeline, is_demo, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -265,6 +267,7 @@ function recordCaptureSuccess(orderId, captureResult) {
       payerId,
       JSON.stringify(rawData),
       updatedTimeline,
+      0,
       now,
       now
     );
@@ -284,7 +287,7 @@ function recordCaptureFailure(orderId, captureResult) {
   const rawData = captureResult.data || {};
 
   // Distinguish DECLINED vs FAILED
-  const isDeclined = interpreted.code === 'INSTRUMENT_DECLINED' || interpreted.code === 'TRANSACTION_REFUSED';
+  const isDeclined = interpreted.code === 'INSTRUMENT_DECLINED' || interpreted.code === 'TRANSACTION_REFUSED' || interpreted.code === 'CARD_EXPIRED';
   const paymentStatus = isDeclined ? PAYMENT_STATUSES.DECLINED : PAYMENT_STATUSES.FAILED;
 
   const currentTimeline = existing ? JSON.stringify(existing.timeline) : null;
@@ -395,6 +398,7 @@ function listTransactions({
   search = null,
   dateFrom = null,
   dateTo = null,
+  errorCategory = null,
   sortBy = 'created_at',
   sortOrder = 'DESC',
 } = {}) {
@@ -411,6 +415,11 @@ function listTransactions({
   if (status && status !== 'ALL') {
     whereClauses.push('payment_status = ?');
     params.push(status.toUpperCase());
+  }
+
+  if (errorCategory && errorCategory !== 'ALL') {
+    whereClauses.push('error_code = ?');
+    params.push(errorCategory);
   }
 
   if (search && search.trim() !== '') {
@@ -467,9 +476,34 @@ function listTransactions({
 }
 
 /**
- * Get dashboard metrics & overview statistics
+ * Get dashboard metrics & overview statistics with optional filters (Prompt 3)
  */
-function getDashboardStats() {
+function getDashboardStats({ status = null, dateFrom = null, dateTo = null, errorCategory = null } = {}) {
+  const whereClauses = [];
+  const params = [];
+
+  if (status && status !== 'ALL') {
+    whereClauses.push('payment_status = ?');
+    params.push(status.toUpperCase());
+  }
+
+  if (errorCategory && errorCategory !== 'ALL') {
+    whereClauses.push('error_code = ?');
+    params.push(errorCategory);
+  }
+
+  if (dateFrom) {
+    whereClauses.push('created_at >= ?');
+    params.push(dateFrom);
+  }
+
+  if (dateTo) {
+    whereClauses.push('created_at <= ?');
+    params.push(dateTo);
+  }
+
+  const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
   const statsQuery = db.prepare(`
     SELECT
       COUNT(*) as total_count,
@@ -479,11 +513,14 @@ function getDashboardStats() {
       SUM(CASE WHEN payment_status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled_count,
       SUM(CASE WHEN payment_status = 'CREATED' THEN 1 ELSE 0 END) as created_count,
       SUM(CASE WHEN payment_status = 'COMPLETED' THEN amount ELSE 0 END) as total_volume_successful,
-      SUM(CASE WHEN payment_status IN ('FAILED', 'DECLINED') THEN amount ELSE 0 END) as total_volume_lost
+      SUM(CASE WHEN payment_status IN ('FAILED', 'DECLINED') THEN amount ELSE 0 END) as total_volume_lost,
+      SUM(CASE WHEN is_demo = 1 THEN 1 ELSE 0 END) as demo_records_count,
+      SUM(CASE WHEN ai_analysis_status = 'analyzed' THEN 1 ELSE 0 END) as ai_analyzed_count
     FROM transactions
+    ${whereSql}
   `);
 
-  const stats = statsQuery.get();
+  const stats = statsQuery.get(...params);
 
   const total = stats.total_count || 0;
   const successful = stats.successful_count || 0;
@@ -509,14 +546,33 @@ function getDashboardStats() {
     recoveryOpportunityRate,
     totalVolumeSuccessful: Number(totalVolume.toFixed(2)),
     totalVolumeLost: Number(lostVolume.toFixed(2)),
+    demoRecordsCount: stats.demo_records_count || 0,
+    aiAnalyzedCount: stats.ai_analyzed_count || 0,
   };
 }
 
 /**
- * Get payment activity breakdown by day or status for visualization
+ * Get payment activity breakdown by day or status with optional filtering (Prompt 3)
  */
-function getPaymentActivity() {
-  // Aggregate daily counts for the last 14 days
+function getPaymentActivity({ dateFrom = null, dateTo = null } = {}) {
+  const whereClauses = [];
+  const params = [];
+
+  if (dateFrom) {
+    whereClauses.push('created_at >= ?');
+    params.push(dateFrom);
+  } else {
+    whereClauses.push("created_at >= date('now', '-30 days')");
+  }
+
+  if (dateTo) {
+    whereClauses.push('created_at <= ?');
+    params.push(dateTo);
+  }
+
+  const whereSql = `WHERE ${whereClauses.join(' AND ')}`;
+
+  // Daily activity
   const dailyQuery = db.prepare(`
     SELECT
       SUBSTR(created_at, 1, 10) as date,
@@ -526,24 +582,24 @@ function getPaymentActivity() {
       SUM(CASE WHEN payment_status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled,
       COUNT(*) as total
     FROM transactions
-    WHERE created_at >= date('now', '-14 days')
+    ${whereSql}
     GROUP BY SUBSTR(created_at, 1, 10)
     ORDER BY date ASC
   `);
 
-  const dailyActivity = dailyQuery.all();
+  const dailyActivity = dailyQuery.all(...params);
 
-  // Aggregate failure reasons for top failure causes
+  // Failure reasons breakdown
   const failureReasonsQuery = db.prepare(`
     SELECT
       COALESCE(error_code, 'UNSPECIFIED') as code,
       COUNT(*) as count,
       SUM(amount) as lost_amount
     FROM transactions
-    WHERE payment_status IN ('FAILED', 'DECLINED')
+    WHERE payment_status IN ('FAILED', 'DECLINED', 'CANCELLED')
     GROUP BY error_code
     ORDER BY count DESC
-    LIMIT 5
+    LIMIT 8
   `);
 
   const failureReasons = failureReasonsQuery.all();
@@ -566,4 +622,3 @@ module.exports = {
   getDashboardStats,
   getPaymentActivity,
 };
-
