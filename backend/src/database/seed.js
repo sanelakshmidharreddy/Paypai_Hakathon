@@ -242,12 +242,12 @@ function seedDatabase() {
       id, paypal_order_id, paypal_capture_id, amount, currency,
       payment_status, paypal_status, payer_email, payer_name, payer_id,
       error_code, error_message, error_details, timeline, customer_notes,
-      created_at, updated_at
+      is_demo, created_at, updated_at
     ) VALUES (
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
-      ?, ?
+      ?, ?, ?
     )
   `);
 
@@ -268,6 +268,7 @@ function seedDatabase() {
       item.error_details,
       item.timeline,
       item.customer_notes,
+      1, // is_demo = 1
       item.created_at,
       item.updated_at
     );
