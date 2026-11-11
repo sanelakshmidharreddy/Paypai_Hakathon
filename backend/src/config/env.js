@@ -1,3 +1,7 @@
+const path = require('path');
+
+// Load backend/.env first, then fall back to root cwd .env
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 require('dotenv').config();
 
 const config = {

@@ -7,7 +7,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "seed": "node src/database/seed.js",
-    "test": "node test/run-tests.js"
+    "test": "node test/run-tests.js",
+    "verify": "node test/verify-credentials.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

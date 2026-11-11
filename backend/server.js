@@ -53,7 +53,9 @@ const server = app.listen(PORT, () => {
   logger.success(`=======================================================`);
   logger.success(`🚀 Server running on http://localhost:${PORT}`);
   logger.info(`   - API Health: http://localhost:${PORT}/api/health`);
-  logger.info(`   - PayPal Client ID: ${config.paypal.clientId ? `${config.paypal.clientId.substring(0, 10)}...` : 'NOT SET'}`);
+  logger.info(`   - PayPal Client ID: ${config.paypal.clientId ? 'CONFIGURED (MASKED)' : 'NOT SET'}`);
+  logger.info(`   - PayPal Webhook ID: ${config.paypal.webhookId ? 'CONFIGURED (MASKED)' : 'NOT SET'}`);
+  logger.info(`   - OpenAI API Key: ${config.openai.apiKey ? 'CONFIGURED (MASKED)' : 'NOT SET'}`);
   logger.info(`   - PayPal Base URL: ${config.paypal.baseUrl}`);
   logger.info(`   - SQLite Database: ${config.database.filePath}`);
   logger.success(`=======================================================`);

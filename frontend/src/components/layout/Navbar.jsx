@@ -13,7 +13,7 @@ export default function Navbar({ paypalConfig, onOpenCheckout, activePage, setAc
         <div>
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-900 tracking-tight text-base">
-              PayPal Recovery Intelligence
+              SmartCheckoutAI
             </span>
             <span className="px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded-full uppercase tracking-wider">
               Hackathon
