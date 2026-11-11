@@ -5,6 +5,7 @@ services:
   - type: web
     name: paypal-recovery-backend
     env: node
+    rootDir: backend
     region: oregon
     plan: starter
     buildCommand: npm install

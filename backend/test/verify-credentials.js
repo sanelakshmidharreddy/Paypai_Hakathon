@@ -70,3 +70,4 @@ verify().catch((err) => {
   console.error('Unexpected failure during verification:', err.message);
   process.exit(1);
 });
+

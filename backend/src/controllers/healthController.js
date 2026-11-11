@@ -50,7 +50,7 @@ async function getHealth(req, res) {
     paypal: paypalHealth,
     openai: {
       configured: config.openai.isConfigured,
-      status: config.openai.isConfigured ? 'ready_for_prompt_2' : 'pending_configuration',
+      status: config.openai.isConfigured ? 'configured' : 'optional_not_configured',
     },
     responseTimeMs,
   });
