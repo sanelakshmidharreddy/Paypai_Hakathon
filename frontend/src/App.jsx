@@ -6,12 +6,13 @@ import TransactionDetailPage from './pages/TransactionDetailPage';
 import SettingsPage from './pages/SettingsPage';
 import CheckoutSimulatorModal from './components/checkout/CheckoutSimulatorModal';
 import { paypalApi } from './api/paypalApi';
+import { INITIAL_PAYPAL_CONFIG } from './data/initialData';
 
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [paypalConfig, setPaypalConfig] = useState(null);
+  const [paypalConfig, setPaypalConfig] = useState(INITIAL_PAYPAL_CONFIG);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Fetch public PayPal configuration

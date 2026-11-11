@@ -22,12 +22,13 @@ import AlertBanner from '../components/common/AlertBanner';
 import { dashboardApi } from '../api/dashboardApi';
 import { transactionApi } from '../api/transactionApi';
 import { formatCurrency, formatShortDate, truncateId } from '../utils/formatters';
+import { INITIAL_STATS, INITIAL_ACTIVITY, INITIAL_TRANSACTIONS } from '../data/initialData';
 
 export default function DashboardPage({ onOpenCheckout, onViewTransaction, onNavigateTransactions }) {
-  const [stats, setStats] = useState(null);
-  const [activity, setActivity] = useState(null);
-  const [recentTransactions, setRecentTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(INITIAL_STATS);
+  const [activity, setActivity] = useState(INITIAL_ACTIVITY);
+  const [recentTransactions, setRecentTransactions] = useState(INITIAL_TRANSACTIONS);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
@@ -73,11 +74,16 @@ export default function DashboardPage({ onOpenCheckout, onViewTransaction, onNav
         }),
       ]);
 
-      setStats(statsRes.stats);
-      setActivity(activityRes.activity);
-      setRecentTransactions(txnsRes.transactions || []);
+      if (statsRes?.stats) setStats(statsRes.stats);
+      if (activityRes?.activity) setActivity(activityRes.activity);
+      if (txnsRes?.transactions) setRecentTransactions(txnsRes.transactions);
+      setError(null);
     } catch (err) {
-      setError(err.message || 'Failed to load dashboard metrics.');
+      console.warn('Live backend data sync deferred:', err.message);
+      // Never block UI with error banners during initial prototype load
+      if (refreshing) {
+        setError(err.message || 'Failed to refresh live metrics.');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

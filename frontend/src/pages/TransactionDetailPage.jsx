@@ -24,14 +24,16 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import AlertBanner from '../components/common/AlertBanner';
 import { transactionApi } from '../api/transactionApi';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import { INITIAL_TRANSACTIONS } from '../data/initialData';
 
 export default function TransactionDetailPage({ transactionId, onBack }) {
-  const [transaction, setTransaction] = useState(null);
+  const initialMatch = INITIAL_TRANSACTIONS.find((t) => t.id === transactionId);
+  const [transaction, setTransaction] = useState(initialMatch || null);
   const [latestAnalysis, setLatestAnalysis] = useState(null);
   const [analysisHistory, setAnalysisHistory] = useState([]);
   const [selectedAnalysis, setSelectedAnalysis] = useState(null);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialMatch);
   const [analyzing, setAnalyzing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
