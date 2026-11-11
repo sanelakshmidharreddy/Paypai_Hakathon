@@ -21,15 +21,21 @@ export async function apiRequest(endpoint, options = {}) {
 
   try {
     const response = await fetch(url, config);
+    const rawText = await response.text();
     let data;
     try {
-      data = await response.json();
+      data = rawText ? JSON.parse(rawText) : {};
     } catch {
-      data = { text: await response.text() };
+      data = { text: rawText };
     }
 
     if (!response.ok) {
-      const error = new Error(data.error || data.message || `Request failed with status ${response.status}`);
+      const isHtml = typeof data.text === 'string' && (data.text.includes('<!DOCTYPE') || data.text.includes('<html'));
+      const friendlyMessage = isHtml
+        ? 'Backend service is starting up on Render. Please wait a moment and click Refresh.'
+        : (data.error || data.message || `Request failed with status ${response.status}`);
+
+      const error = new Error(friendlyMessage);
       error.status = response.status;
       error.data = data;
       error.code = data.code;
